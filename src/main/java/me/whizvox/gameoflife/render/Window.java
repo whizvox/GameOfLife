@@ -1,5 +1,6 @@
-package me.whizvox.gameoflife;
+package me.whizvox.gameoflife.render;
 
+import me.whizvox.gameoflife.Resource;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.system.MemoryStack;
@@ -16,6 +17,10 @@ public class Window implements Resource {
 
   public Window() {
     handle = NULL;
+  }
+
+  public long getHandle() {
+    return handle;
   }
 
   public boolean isCreated() {

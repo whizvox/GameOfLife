@@ -1,4 +1,4 @@
-package me.whizvox.gameoflife;
+package me.whizvox.gameoflife.render.mesh;
 
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;

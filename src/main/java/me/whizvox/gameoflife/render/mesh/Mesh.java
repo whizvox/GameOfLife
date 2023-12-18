@@ -1,18 +1,17 @@
-package me.whizvox.gameoflife;
+package me.whizvox.gameoflife.render.mesh;
 
-import java.io.IOException;
+import me.whizvox.gameoflife.Resource;
+
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 
 import static org.lwjgl.opengl.GL33.*;
-import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
 public class Mesh implements Resource {
 
   public static final int VERTEX_SIZE = 2;
 
-  private int shaderProgram;
   private int vao;
   private int vertexBuffer;
   private int indexBuffer;
@@ -23,7 +22,6 @@ public class Mesh implements Resource {
   private int indexBufferSize;
 
   public Mesh() {
-    shaderProgram = 0;
     vao = 0;
     vertexBuffer = 0;
     indexBuffer = 0;
@@ -90,56 +88,6 @@ public class Mesh implements Resource {
   }
 
   public void create() {
-    int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    try {
-      glShaderSource(vertexShader, IOUtils.readResourceAsString("shaders/simple.vert"));
-    } catch (IOException e) {
-      throw new RuntimeException("Could not read vertex shader", e);
-    }
-    glCompileShader(vertexShader);
-    try (var stack = stackPush()) {
-      var statusPtr = stack.mallocInt(1);
-      glGetShaderiv(vertexShader, GL_COMPILE_STATUS, statusPtr);
-      if (statusPtr.get(0) != GL_TRUE) {
-        var e = new IllegalStateException("Could not compile vertex shader: " + glGetShaderInfoLog(vertexShader));
-        glDeleteShader(vertexShader);
-        throw e;
-      }
-    }
-    int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    try {
-      glShaderSource(fragmentShader, IOUtils.readResourceAsString("shaders/simple.frag"));
-    } catch (IOException e) {
-      throw new RuntimeException("Could not read fragment shader", e);
-    }
-    glCompileShader(fragmentShader);
-    try (var stack = stackPush()) {
-      var statusPtr = stack.mallocInt(1);
-      glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, statusPtr);
-      if (statusPtr.get(0) != GL_TRUE) {
-        glDeleteShader(vertexShader);
-        var e = new IllegalStateException("Could not compile fragment shader: " + glGetShaderInfoLog(fragmentShader));
-        glDeleteShader(fragmentShader);
-        throw e;
-      }
-    }
-    shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-    try (var stack = stackPush()) {
-      var statusPtr = stack.mallocInt(1);
-      glGetProgramiv(shaderProgram, GL_LINK_STATUS, statusPtr);
-      if (statusPtr.get(0) != GL_TRUE) {
-        var e = new IllegalStateException("Could not link program: " + glGetProgramInfoLog(shaderProgram));
-        glDeleteProgram(shaderProgram);
-        shaderProgram = 0;
-        throw e;
-      }
-    }
-
     vao = glGenVertexArrays();
     vertexBuffer = glGenBuffers();
     indexBuffer = glGenBuffers();
@@ -151,7 +99,6 @@ public class Mesh implements Resource {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexBufferCapacity, GL_DYNAMIC_DRAW);
     glVertexAttribPointer(0, VERTEX_SIZE, GL_FLOAT, false, Float.BYTES * VERTEX_SIZE, NULL);
     glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
   }
 
@@ -167,10 +114,8 @@ public class Mesh implements Resource {
 
   public void render() {
     if (indexBufferSize > 0) {
-      glUseProgram(shaderProgram);
       glBindVertexArray(vao);
       glDrawElements(GL_TRIANGLES, indexBufferSize, GL_UNSIGNED_INT, 0);
-      glBindVertexArray(0);
     }
   }
 
@@ -183,10 +128,6 @@ public class Mesh implements Resource {
     if (vertexBuffer != 0) {
       glDeleteBuffers(vertexBuffer);
       vertexBuffer = 0;
-    }
-    if (shaderProgram != 0) {
-      glDeleteProgram(shaderProgram);
-      shaderProgram = 0;
     }
   }
 
