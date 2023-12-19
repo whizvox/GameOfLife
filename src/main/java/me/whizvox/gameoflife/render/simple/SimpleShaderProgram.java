@@ -1,5 +1,7 @@
-package me.whizvox.gameoflife.render.shader;
+package me.whizvox.gameoflife.render.simple;
 
+import me.whizvox.gameoflife.render.shader.ShaderProgram;
+import me.whizvox.gameoflife.render.shader.ShaderUtils;
 import org.joml.Matrix4f;
 import org.lwjgl.system.MemoryUtil;
 
