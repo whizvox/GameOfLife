@@ -1,22 +1,40 @@
 package me.whizvox.gameoflife;
 
 import me.whizvox.gameoflife.input.InputManager;
-import me.whizvox.gameoflife.window.Window;
+import me.whizvox.gameoflife.render.mesh.Mesh;
 import me.whizvox.gameoflife.render.simple.SimpleRenderer;
+import me.whizvox.gameoflife.simulation.World;
+import me.whizvox.gameoflife.window.Window;
 import org.joml.Vector2i;
 import org.joml.Vector3d;
 import org.lwjgl.opengl.GL;
+
+import java.util.Timer;
+import java.util.TimerTask;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 
 public class GameOfLife {
 
+  private static final int[] TICK_RATES = new int[] { 1000, 881, 762, 643, 525, 406, 287, 168, 50 };
+
+  private static TimerTask createWorldTickTask(World world) {
+    return new TimerTask() {
+      @Override
+      public void run() {
+        world.tick();
+      }
+    };
+  }
+
   public static void main(String[] args) {
 
     Window window = new Window();
     window.create(600, 480);
     GL.createCapabilities();
+    Mesh mesh = new Mesh(10000, 10000);
+    mesh.create();
     InputManager inputManager = new InputManager(window);
     SimpleRenderer renderer = new SimpleRenderer();
     window.setResizeCallback((width, height) -> {
@@ -26,9 +44,102 @@ public class GameOfLife {
     boolean showGrid = false;
     renderer.resize(600, 480);
 
+    World world = new World();
+    boolean runWorld = false;
+    int worldTickRate = TICK_RATES[4];
+
+    Timer worldTimer = new Timer();
+    TimerTask worldTickTask = null;
+    boolean rescheduleTickTask = false;
+
     while (!window.shouldClose()) {
       glClearColor(1, 0, 0, 1);
       glClear(GL_COLOR_BUFFER_BIT);
+
+      if (inputManager.isKeyJustPressed(GLFW_KEY_T)) {
+        runWorld = !runWorld;
+        rescheduleTickTask = true;
+      }
+      if (inputManager.isKeyJustPressed(GLFW_KEY_R)) {
+        world.reset();
+        runWorld = false;
+        rescheduleTickTask = true;
+      }
+      if (inputManager.isKeyJustPressed(GLFW_KEY_1)) {
+        worldTickRate = TICK_RATES[0];
+        rescheduleTickTask = true;
+      }
+      if (inputManager.isKeyJustPressed(GLFW_KEY_2)) {
+        worldTickRate = TICK_RATES[1];
+        rescheduleTickTask = true;
+      }
+      if (inputManager.isKeyJustPressed(GLFW_KEY_3)) {
+        worldTickRate = TICK_RATES[2];
+        rescheduleTickTask = true;
+      }
+      if (inputManager.isKeyJustPressed(GLFW_KEY_4)) {
+        worldTickRate = TICK_RATES[3];
+        rescheduleTickTask = true;
+      }
+      if (inputManager.isKeyJustPressed(GLFW_KEY_5)) {
+        worldTickRate = TICK_RATES[4];
+        rescheduleTickTask = true;
+      }
+      if (inputManager.isKeyJustPressed(GLFW_KEY_6)) {
+        worldTickRate = TICK_RATES[5];
+        rescheduleTickTask = true;
+      }
+      if (inputManager.isKeyJustPressed(GLFW_KEY_7)) {
+        worldTickRate = TICK_RATES[6];
+        rescheduleTickTask = true;
+      }
+      if (inputManager.isKeyJustPressed(GLFW_KEY_8)) {
+        worldTickRate = TICK_RATES[7];
+        rescheduleTickTask = true;
+      }
+      if (inputManager.isKeyJustPressed(GLFW_KEY_9)) {
+        worldTickRate = TICK_RATES[8];
+        rescheduleTickTask = true;
+      }
+      if (inputManager.isKeyJustPressed(GLFW_KEY_0)) {
+        worldTickRate = 0;
+        rescheduleTickTask = true;
+      }
+      if (rescheduleTickTask) {
+        rescheduleTickTask = false;
+        if (runWorld) {
+          if (worldTickTask != null) {
+            worldTickTask.cancel();
+          }
+          worldTickTask = createWorldTickTask(world);
+          if (worldTickRate > 0) {
+            worldTimer.schedule(worldTickTask, 0, worldTickRate);
+          } else {
+            worldTimer.schedule(worldTickTask, 0, 5);
+          }
+        } else {
+          if (worldTickTask != null) {
+            worldTickTask.cancel();
+          }
+        }
+      }
+      if (inputManager.isMouseButtonJustPressed(GLFW_MOUSE_BUTTON_1)) {
+        Vector3d mousePos = new Vector3d(inputManager.getMousePosition(), 0);
+        Vector2i windowSize = window.getSize();
+        renderer.getCamera().unproject(mousePos, windowSize.x, windowSize.y);
+        int x, y;
+        if (mousePos.x < 0) {
+          x = (int) mousePos.x - 1;
+        } else {
+          x = (int) mousePos.x;
+        }
+        if (mousePos.y < 0) {
+          y = (int) mousePos.y - 1;
+        } else {
+          y = (int) mousePos.y;
+        }
+        world.toggle(x, y);
+      }
 
       float moveAmount = 0.05f;
       if (inputManager.isKeyHeld(GLFW_KEY_LEFT)) {
@@ -54,30 +165,29 @@ public class GameOfLife {
         renderer.getCamera().changeZoom(amount);
       }
       renderer.updateCamera();
-      if (inputManager.hasMouseMoved()) {
-        Vector3d mousePos = new Vector3d(inputManager.getMousePosition(), 0);
-        Vector2i windowSize = window.getSize();
-        renderer.getCamera().unproject(mousePos, windowSize.x, windowSize.y);
-        renderer.rect((float) mousePos.x - 0.1f, (float) mousePos.y - 0.1f, 0.2f, 0.2f);
-      }
-      renderer.rect(-0.5f, -0.5f, 1, 1);
-      renderer.rect(-1, -1, 0.2f, 0.2f);
-      renderer.getMesh().setDrawingMode(GL_TRIANGLES);
-      renderer.render();
-      renderer.getMesh().reset();
+      renderer.begin();
+      //mesh.rect(-0.5f, -0.5f, 1, 1);
+      //mesh.rect(-1, -1, 0.2f, 0.2f);
+      world.forEachCell(pos -> {
+        mesh.rect(pos.x(), pos.y(), 1, 1);
+      });
+      mesh.setDrawingMode(GL_TRIANGLES);
+      mesh.flush();
 
       if (showGrid) {
-        renderer.drawGrid(-100, 100, -100, 100);
-        renderer.getMesh().setDrawingMode(GL_LINES);
-        renderer.render();
-        renderer.getMesh().reset();
+        mesh.grid(-100, 100, -100, 100);
+        mesh.setDrawingMode(GL_LINES);
+        mesh.flush();
       }
+      renderer.end();
 
       glfwSwapBuffers(window.getHandle());
       inputManager.update();
       glfwPollEvents();
     }
 
+    worldTimer.cancel();
+    mesh.dispose();
     renderer.dispose();
     window.dispose();
 

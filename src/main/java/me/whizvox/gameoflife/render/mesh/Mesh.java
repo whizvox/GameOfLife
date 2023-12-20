@@ -76,21 +76,7 @@ public class Mesh implements Resource {
     this.bufferUsage = bufferUsage;
   }
 
-  public void addVertices(FloatBuffer vertices) {
-    checkVertexCount(vertices.remaining());
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-    glBufferSubData(GL_ARRAY_BUFFER, vertexBufferSize, vertices);
-    vertexBufferSize += vertices.remaining();
-  }
-
-  public void addIndices(IntBuffer indices) {
-    checkIndexCount(indices.remaining());
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, indexBufferSize, indices);
-    indexBufferSize += indices.remaining();
-  }
-
-  public void addVerticesAndIndices(FloatBuffer vertices, IntBuffer indices, boolean applyIndexOffset) {
+  public void uploadData(FloatBuffer vertices, IntBuffer indices, boolean applyIndexOffset) {
     checkVertexCount(vertices.remaining());
     checkIndexCount(indices.remaining());
     if (applyIndexOffset) {
@@ -108,7 +94,11 @@ public class Mesh implements Resource {
     indexBufferSize += indices.remaining();
   }
 
-  public void addVerticesAndIndices(float[] vertices, int[] indices, boolean applyIndexOffset) {
+  public void uploadData(FloatBuffer vertices, IntBuffer indices) {
+    uploadData(vertices, indices, true);
+  }
+
+  public void uploadData(float[] vertices, int[] indices, boolean applyIndexOffset) {
     checkVertexCount(vertices.length);
     checkIndexCount(indices.length);
     if (applyIndexOffset) {
@@ -123,6 +113,52 @@ public class Mesh implements Resource {
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, indexBufferSize * Integer.BYTES, indices);
     vertexBufferSize += vertices.length;
     indexBufferSize += indices.length;
+  }
+
+  public void uploadData(float[] vertices, int[] indices) {
+    uploadData(vertices, indices, true);
+  }
+
+  /**
+   * Requires drawing mode of {@link org.lwjgl.opengl.GL11#GL_LINES}
+   */
+  public void line(float x1, float y1, float x2, float y2) {
+    float[] vertices = new float[] { x1, y1, x2, y2 };
+    int[] indices = new int[] { 0, 1 };
+    uploadData(vertices, indices, true);
+  }
+
+  /**
+   * Requires drawing mode of {@link org.lwjgl.opengl.GL11#GL_LINES}
+   */
+  public void grid(int left, int right, int bottom, int top) {
+    for (int x = left; x <= right; x++) {
+      line(x, bottom, x, top);
+    }
+    for (int y = bottom; y <= top; y++) {
+      line(left, y, right, y);
+    }
+  }
+
+  /**
+   * Requires drawing mode of {@link org.lwjgl.opengl.GL11#GL_TRIANGLES}
+   */
+  public void quad(float x1, float y1, float x2, float y2) {
+    float[] vertices = new float[] {
+        x2, y2,
+        x2, y1,
+        x1, y1,
+        x1, y2
+    };
+    int[] indices = new int[] { 0, 1, 3, 1, 2, 3 };
+    uploadData(vertices, indices, true);
+  }
+
+  /**
+   * Requires drawing mode of {@link org.lwjgl.opengl.GL11#GL_TRIANGLES}
+   */
+  public void rect(float x, float y, float width, float height) {
+    quad(x, y, x + width, y + height);
   }
 
   public void create() {
