@@ -5,8 +5,7 @@ import me.whizvox.gameoflife.render.mesh.Mesh;
 import me.whizvox.gameoflife.render.simple.SimpleRenderer;
 import me.whizvox.gameoflife.simulation.World;
 import me.whizvox.gameoflife.window.Window;
-import org.joml.Vector2i;
-import org.joml.Vector3d;
+import org.joml.*;
 import org.lwjgl.opengl.GL;
 
 import java.util.Timer;
@@ -26,6 +25,13 @@ public class GameOfLife {
         world.tick();
       }
     };
+  }
+
+  private static Vector2f getWorldPosition(Window window, SimpleRenderer renderer, Vector2d mousePos) {
+    Vector3d mousePos3 = new Vector3d(mousePos, 0);
+    Vector2i windowSize = window.getSize();
+    renderer.getCamera().unproject(mousePos3, windowSize.x, windowSize.y);
+    return new Vector2f((float) mousePos3.x, (float) mousePos3.y);
   }
 
   public static void main(String[] args) {
@@ -64,6 +70,10 @@ public class GameOfLife {
         world.reset();
         runWorld = false;
         rescheduleTickTask = true;
+      }
+      if (inputManager.isKeyJustPressed(GLFW_KEY_O)) {
+        renderer.getCamera().getView().setTranslation(new Vector3f());
+        renderer.getCamera().setZoom(1, new Vector3f());
       }
       if (inputManager.isKeyJustPressed(GLFW_KEY_1)) {
         worldTickRate = TICK_RATES[0];
@@ -124,24 +134,22 @@ public class GameOfLife {
         }
       }
       if (inputManager.isMouseButtonJustPressed(GLFW_MOUSE_BUTTON_1)) {
-        Vector3d mousePos = new Vector3d(inputManager.getMousePosition(), 0);
-        Vector2i windowSize = window.getSize();
-        renderer.getCamera().unproject(mousePos, windowSize.x, windowSize.y);
+        Vector2f worldPos = getWorldPosition(window, renderer, inputManager.getMousePosition());
         int x, y;
-        if (mousePos.x < 0) {
-          x = (int) mousePos.x - 1;
+        if (worldPos.x < 0) {
+          x = (int) worldPos.x - 1;
         } else {
-          x = (int) mousePos.x;
+          x = (int) worldPos.x;
         }
-        if (mousePos.y < 0) {
-          y = (int) mousePos.y - 1;
+        if (worldPos.y < 0) {
+          y = (int) worldPos.y - 1;
         } else {
-          y = (int) mousePos.y;
+          y = (int) worldPos.y;
         }
         world.toggle(x, y);
       }
 
-      float moveAmount = 0.05f;
+      float moveAmount = 0.05f * renderer.getCamera().getZoom();
       if (inputManager.isKeyHeld(GLFW_KEY_LEFT)) {
         renderer.getCamera().getView().translate(moveAmount, 0, 0);
       }
@@ -158,16 +166,15 @@ public class GameOfLife {
         showGrid = !showGrid;
       }
       if (inputManager.hasScrolled()) {
-        float amount = (float) inputManager.getScrollDelta().y * -0.1f;
+        Vector2f mouseWorldPos = getWorldPosition(window, renderer, inputManager.getMousePosition());
+        float amount = (float) inputManager.getScrollDelta().y * -0.3f;
         if (inputManager.isKeyHeld(GLFW_KEY_LEFT_SHIFT) || inputManager.isKeyHeld(GLFW_KEY_RIGHT_SHIFT)) {
           amount *= 10;
         }
-        renderer.getCamera().changeZoom(amount);
+        renderer.getCamera().changeZoom(amount, new Vector3f(mouseWorldPos, 0));
       }
       renderer.updateCamera();
       renderer.begin();
-      //mesh.rect(-0.5f, -0.5f, 1, 1);
-      //mesh.rect(-1, -1, 0.2f, 0.2f);
       world.forEachCell(pos -> {
         mesh.rect(pos.x(), pos.y(), 1, 1);
       });
@@ -175,7 +182,9 @@ public class GameOfLife {
       mesh.flush();
 
       if (showGrid) {
-        mesh.grid(-100, 100, -100, 100);
+        Vector2f corner1 = getWorldPosition(window, renderer, new Vector2d(0, 0));
+        Vector2f corner2 = getWorldPosition(window, renderer, new Vector2d(window.getSize()));
+        mesh.grid((int) corner1.x - 1, (int) corner2.x + 1, (int) corner2.y - 1, (int) corner1.y + 1);
         mesh.setDrawingMode(GL_LINES);
         mesh.flush();
       }

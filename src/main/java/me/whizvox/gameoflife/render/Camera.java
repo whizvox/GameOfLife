@@ -2,6 +2,7 @@ package me.whizvox.gameoflife.render;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 
 public class Camera {
 
@@ -36,12 +37,20 @@ public class Camera {
     return zoom;
   }
 
-  public void setZoom(float zoom) {
-    this.zoom = zoom;
+  public void setZoom(float newZoom, Vector3f pivot) {
+    float oldZoom = zoom;
+    zoom = newZoom;
+    if (zoom < 0) {
+      zoom = 0.0001f;
+    }
+    // Matrix4f#scaleAround doesn't do this in the order I want
+    view.translate(pivot);
+    view.scale(oldZoom / zoom);
+    view.translate(-pivot.x, -pivot.y, -pivot.z);
   }
 
-  public void changeZoom(float amount) {
-    zoom += amount;
+  public void changeZoom(float amount, Vector3f pivot) {
+    setZoom(zoom + amount, pivot);
   }
 
   // special thanks to LibGDX
@@ -56,10 +65,6 @@ public class Camera {
 
   public void update() {
     view.mul(projection, combined);
-    if (zoom <= 0) {
-      zoom = 0.00001f;
-    }
-    combined.scale(1.0f / zoom);
     combined.invert(invCombined);
   }
 
